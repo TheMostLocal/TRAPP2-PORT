@@ -1,0 +1,41 @@
+name: Push PORT → Supabase
+
+# Pushes the PORT backend into the shared ANALYTICS/PORT Supabase project:
+#   • portfolio_data.json      → portfolio_positions   (positions + txns + cash + index)
+#   • probability_data.json    → analytics_kv           (probability:<TICKER>)
+# Both upsert by key (fresh, never duplicated) and reconcile stale rows.
+
+on:
+  push:
+    paths:
+      - 'data/portfolio_data.json'
+      - 'data/probability_data.json'
+  schedule:
+    - cron: '20 * * * *'        # hourly at :20
+  workflow_dispatch:
+
+concurrency:
+  group: port-supabase
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - name: Push portfolio → Supabase
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          SUPABASE_SERVICE_ROLE: ${{ secrets.SUPABASE_SERVICE_ROLE }}
+        run: python3 pipeline/sync_port_to_supabase.py
+      - name: Push probability → Supabase
+        if: always()          # push theses even if the portfolio step reported issues
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          SUPABASE_SERVICE_ROLE: ${{ secrets.SUPABASE_SERVICE_ROLE }}
+        run: python3 pipeline/sync_probability_to_supabase.py
