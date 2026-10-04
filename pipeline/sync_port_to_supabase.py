@@ -38,6 +38,13 @@ import urllib.request
 import urllib.error
 from datetime import datetime, timezone, timedelta
 
+# Repo owner — resolved at runtime so the pipeline follows the repos to any
+# GitHub account. Actions sets GITHUB_REPOSITORY_OWNER automatically;
+# VALUATIO_OWNER (repo variable/env) overrides; legacy owner is the fallback.
+_GH_OWNER = (__import__("os").environ.get("VALUATIO_OWNER")
+             or __import__("os").environ.get("GITHUB_REPOSITORY_OWNER")
+             or "GoodGlobeLLC").strip()
+
 URL = os.environ.get("SUPABASE_URL", "").rstrip("/")
 KEY = (os.environ.get("SUPABASE_SERVICE_ROLE")
        or os.environ.get("SUPABASE_SERVICE_KEY")
@@ -46,10 +53,11 @@ KEY = (os.environ.get("SUPABASE_SERVICE_ROLE")
 TABLE = "portfolio_positions"
 DATA = "data/portfolio_data.json"
 
-RAW = "https://raw.githubusercontent.com/GoodGlobeLLC"
+RAW = f"https://raw.githubusercontent.com/{_GH_OWNER}"
 MASTER_SOURCES = [f"{RAW}/TRAPP2/main/data/master.json",
                   f"{RAW}/TRAPP2-2/main/data/master.json",
-                  f"{RAW}/TRAPP2-1/main/data/master.json"]
+                  f"{RAW}/TRAPP2-1/main/data/master.json",
+                  f"{RAW}/TRAPP2-3/main/data/master.json"]  # gap-fill only (first-wins)
 ACTIVE_ROLES = {"long", "short", "buy to open", "sell to open"}
 SHORT_ROLES = {"short", "sell to open"}
 
