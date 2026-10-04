@@ -1,0 +1,294 @@
+{
+  "schema": "valuatio-portfolio/v1",
+  "generatedAt": "2026-06-22T23:34:08.043Z",
+  "counts": {
+    "portfolio": 4,
+    "holdings": 0,
+    "watching": 1,
+    "tracking": 2,
+    "avoid": 0,
+    "transactions": 4
+  },
+  "cashPosition": 94640,
+  "portfolio": [
+    {
+      "id": "GLD-1781937135894-jo5t4",
+      "addedAt": "2026-06-20T06:32:15.894Z",
+      "ticker": "GLD",
+      "position": "Tracking",
+      "notes": [
+        {
+          "ts": "2026-06-20T06:32:15.893Z",
+          "text": "Added to Tracking from Valuation tab @ $387.12",
+          "priceAtNote": 387.119995
+        }
+      ]
+    },
+    {
+      "id": "NVDA-1781937467206-7lrqh",
+      "addedAt": "2026-06-20T06:37:47.206Z",
+      "ticker": "NVDA",
+      "position": "Tracking",
+      "notes": [
+        {
+          "ts": "2026-06-20T06:37:47.203Z",
+          "text": "Added to Tracking from Valuation tab @ $210.69",
+          "priceAtNote": 210.690002
+        }
+      ]
+    },
+    {
+      "id": "AAPL-1782101366221-bvz3g",
+      "addedAt": "2025-12-30T12:00:00.000Z",
+      "ticker": "AAPL",
+      "position": "Long",
+      "qty": 100,
+      "costBasis": 273.08,
+      "fees": 30,
+      "notes": [
+        {
+          "ts": "2025-12-30T12:00:00.000Z",
+          "text": "Bought 100 @ $273.08 on 2025-12-30 · Good entry",
+          "priceAtNote": 273.08,
+          "backdated": true
+        }
+      ],
+      "_source": "modal"
+    },
+    {
+      "qty": null,
+      "fees": 0,
+      "name": "Taiwan Semiconductor Manufacturing Company Limited",
+      "notes": [],
+      "pnlPct": 0,
+      "sector": "Technology",
+      "ticker": "TSM",
+      "_source": "modal",
+      "addedAt": "2026-06-22T12:00:00.000Z",
+      "position": "Watching",
+      "costBasis": 462.12,
+      "livePrice": 462.12,
+      "returnPct": 0,
+      "assetClass": "equity",
+      "conviction": 52,
+      "id": "TSM-legacy-6-2026-06-22"
+    }
+  ],
+  "byRole": {
+    "holdings": [],
+    "watching": [
+      {
+        "qty": null,
+        "fees": 0,
+        "name": "Taiwan Semiconductor Manufacturing Company Limited",
+        "notes": [],
+        "pnlPct": 0,
+        "sector": "Technology",
+        "ticker": "TSM",
+        "_source": "modal",
+        "addedAt": "2026-06-22T12:00:00.000Z",
+        "position": "Watching",
+        "costBasis": 462.12,
+        "livePrice": 462.12,
+        "returnPct": 0,
+        "assetClass": "equity",
+        "conviction": 52,
+        "id": "TSM-legacy-6-2026-06-22"
+      }
+    ],
+    "tracking": [
+      {
+        "id": "GLD-1781937135894-jo5t4",
+        "addedAt": "2026-06-20T06:32:15.894Z",
+        "ticker": "GLD",
+        "position": "Tracking",
+        "notes": [
+          {
+            "ts": "2026-06-20T06:32:15.893Z",
+            "text": "Added to Tracking from Valuation tab @ $387.12",
+            "priceAtNote": 387.119995
+          }
+        ]
+      },
+      {
+        "id": "NVDA-1781937467206-7lrqh",
+        "addedAt": "2026-06-20T06:37:47.206Z",
+        "ticker": "NVDA",
+        "position": "Tracking",
+        "notes": [
+          {
+            "ts": "2026-06-20T06:37:47.203Z",
+            "text": "Added to Tracking from Valuation tab @ $210.69",
+            "priceAtNote": 210.690002
+          }
+        ]
+      }
+    ],
+    "avoid": [],
+    "other": [
+      {
+        "id": "AAPL-1782101366221-bvz3g",
+        "addedAt": "2025-12-30T12:00:00.000Z",
+        "ticker": "AAPL",
+        "position": "Long",
+        "qty": 100,
+        "costBasis": 273.08,
+        "fees": 30,
+        "notes": [
+          {
+            "ts": "2025-12-30T12:00:00.000Z",
+            "text": "Bought 100 @ $273.08 on 2025-12-30 · Good entry",
+            "priceAtNote": 273.08,
+            "backdated": true
+          }
+        ],
+        "_source": "modal"
+      }
+    ]
+  },
+  "transactions": [
+    {
+      "id": "tx-1782099038659-c4plw",
+      "ts": "2026-06-22T03:30:38.659Z",
+      "type": "buy",
+      "ticker": "SNK",
+      "qty": 2000,
+      "price": 15.97,
+      "fee": 30,
+      "cost": 31970,
+      "proceeds": 0,
+      "realizedPL": 0,
+      "entryId": "SNK-1782099038647-jzvn1",
+      "entryDate": "2026-06-22T12:00:00.000Z",
+      "entryPrice": 15.97,
+      "notes": "Good entry"
+    },
+    {
+      "id": "tx-1782101366224-i4hsh",
+      "ts": "2026-06-22T04:09:26.224Z",
+      "type": "buy",
+      "ticker": "AAPL",
+      "qty": 100,
+      "price": 273.08,
+      "fee": 30,
+      "cost": 27338,
+      "proceeds": 0,
+      "realizedPL": 0,
+      "entryId": "AAPL-1782101366221-bvz3g",
+      "entryDate": "2025-12-30T12:00:00.000Z",
+      "entryPrice": 273.08,
+      "notes": "Good entry"
+    },
+    {
+      "id": "tx-1782171181417-akuyl",
+      "ts": "2026-06-22T23:33:01.417Z",
+      "type": "sell",
+      "ticker": "SNK",
+      "qty": 2000,
+      "price": 21.16,
+      "fee": 0,
+      "proceeds": 42320,
+      "realizedPL": 10379.999999999998,
+      "realizedPLPct": 32.49843456480902,
+      "entryId": "SNK-1781937967070-uogkm",
+      "entryDate": "2026-06-20T12:00:00.000Z",
+      "entryPrice": 15.97,
+      "soldDate": "2026-06-22T23:33:01.411Z",
+      "notes": null,
+      "positionNotes": [
+        {
+          "ts": "2026-06-20T12:00:00.000Z",
+          "text": "Bought 2000 @ $15.97 on 2026-06-20 · Short",
+          "priceAtNote": 15.97,
+          "backdated": false
+        }
+      ]
+    },
+    {
+      "id": "tx-1782171181419-e8595",
+      "ts": "2026-06-22T23:33:01.419Z",
+      "type": "sell",
+      "ticker": "SNK",
+      "qty": 2000,
+      "price": 21.16,
+      "fee": 0,
+      "proceeds": 42320,
+      "entryId": "SNK-1781937967070-uogkm",
+      "reason": "position-removed"
+    }
+  ],
+  "goodGlobeIndex": {
+    "TSM": {
+      "flags": [
+        "Watching"
+      ],
+      "notes": null,
+      "source": "modal",
+      "ticker": "TSM",
+      "assetType": "equity",
+      "entryDate": "2026-06-22T03:26:19.570Z",
+      "entryPrice": 462.119995,
+      "lastFlaggedAt": "2026-06-22T23:33:12.203Z",
+      "firstFlaggedAt": "2026-06-22T03:26:19.570Z"
+    },
+    "GLD": {
+      "ticker": "GLD",
+      "assetType": "etf",
+      "firstFlaggedAt": "2026-06-22T23:33:12.201Z",
+      "lastFlaggedAt": "2026-06-22T23:33:12.201Z",
+      "flags": [
+        "Tracking"
+      ],
+      "source": "portfolio",
+      "notes": "Added to Tracking from Valuation tab @ $387.12",
+      "entryPrice": 384.589996,
+      "entryDate": "2026-06-22T23:33:12.201Z"
+    },
+    "NVDA": {
+      "ticker": "NVDA",
+      "assetType": "equity",
+      "firstFlaggedAt": "2026-06-22T23:33:12.202Z",
+      "lastFlaggedAt": "2026-06-22T23:33:12.202Z",
+      "flags": [
+        "Tracking"
+      ],
+      "source": "portfolio",
+      "notes": "Added to Tracking from Valuation tab @ $210.69",
+      "entryPrice": 208.649994,
+      "entryDate": "2026-06-22T23:33:12.202Z"
+    },
+    "AAPL": {
+      "ticker": "AAPL",
+      "assetType": "equity",
+      "firstFlaggedAt": "2026-06-22T23:33:12.203Z",
+      "lastFlaggedAt": "2026-06-22T23:33:12.203Z",
+      "flags": [
+        "Long"
+      ],
+      "source": "portfolio",
+      "notes": "Bought 100 @ $273.08 on 2025-12-30 · Good entry",
+      "entryPrice": 273.08,
+      "entryDate": "2026-06-22T23:33:12.203Z"
+    }
+  },
+  "goodGlobeCurve": {
+    "level": [
+      {
+        "date": "2026-06-22",
+        "level": 100,
+        "members": 4
+      }
+    ],
+    "priceSnaps": {
+      "_last": {
+        "date": "2026-06-22",
+        "prices": {
+          "TSM": 467.670013,
+          "AAPL": 297.01001,
+          "NVDA": 208.649994,
+          "GLD": 384.589996
+        }
+      }
+    }
+  }
+}
