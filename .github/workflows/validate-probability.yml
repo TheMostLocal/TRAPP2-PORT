@@ -1,0 +1,47 @@
+name: Validate probability_data.json
+
+# Validates the probability theses file committed from the app. Runs on push to
+# data/probability_data.json. No external deps — stdlib json only.
+
+on:
+  push:
+    paths:
+      - 'data/probability_data.json'
+  schedule:
+    - cron: '5 * * * *'        # hourly at :05
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate JSON shape
+        run: |
+          python3 - <<'PY'
+          import json, sys, pathlib
+          p = pathlib.Path("data/probability_data.json")
+          if not p.exists():
+              print("No probability_data.json yet — nothing to validate.")
+              sys.exit(0)
+          d = json.loads(p.read_text())
+          # Accept the wrapped snapshot {schema, theses:[...]} OR a bare array.
+          if isinstance(d, list):
+              theses = d
+          elif isinstance(d, dict):
+              theses = d.get("theses")
+              if theses is None:
+                  print("✗ object missing 'theses' array"); sys.exit(1)
+          else:
+              print("✗ unexpected top-level type"); sys.exit(1)
+          if not isinstance(theses, list):
+              print("✗ 'theses' is not an array"); sys.exit(1)
+          missing_ticker = 0
+          for t in theses:
+              raw = t.get("_raw", t) if isinstance(t, dict) else {}
+              tic = (t.get("ticker") or t.get("primaryTicker")
+                     or raw.get("ticker") or raw.get("primaryTicker")) if isinstance(t, dict) else None
+              if not tic:
+                  missing_ticker += 1
+          print(f"OK — {len(theses)} thesis record(s), {missing_ticker} without a ticker")
+          PY

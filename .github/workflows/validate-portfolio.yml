@@ -1,0 +1,76 @@
+name: Validate portfolio data
+
+# Sanity-checks data/portfolio_data.json on every push so a malformed export
+# can't silently corrupt the portfolio backend. Pure validation — never writes.
+#
+# Accepts BOTH supported shapes:
+#   1. Bare array of positions   [{ticker, position, qty, ...}, ...]
+#        (the hand-maintained / app's raw loadPortfolio format)
+#   2. Wrapped snapshot          {schema, generatedAt, portfolio:[...], transactions:[...], ...}
+#        (the app's "Export Portfolio JSON" full snapshot)
+
+on:
+  push:
+    paths:
+      - 'data/portfolio_data.json'
+  schedule:
+    - cron: '5 * * * *'        # hourly at :05
+  workflow_dispatch: {}
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate JSON shape
+        run: |
+          python3 - <<'PY'
+          import json, sys
+          p = "data/portfolio_data.json"
+          with open(p) as f:
+              d = json.load(f)   # fails loudly if not valid JSON
+
+          def check_position(pos, i):
+              if not isinstance(pos, dict):
+                  print(f"position {i} is not an object"); sys.exit(1)
+              if "ticker" not in pos:
+                  print(f"position {i} missing 'ticker'"); sys.exit(1)
+
+          # ---- Shape 1: bare array of positions ----
+          if isinstance(d, list):
+              for i, pos in enumerate(d):
+                  check_position(pos, i)
+              print(f"OK (bare array) — {len(d)} positions")
+              sys.exit(0)
+
+          # ---- Shape 2: wrapped snapshot ----
+          if isinstance(d, dict):
+              # 'portfolio' (or legacy 'positions') must be a list of positions.
+              positions = d.get("portfolio")
+              if positions is None:
+                  positions = d.get("positions")
+              if not isinstance(positions, list):
+                  print("wrapped object but 'portfolio'/'positions' is missing or not a list")
+                  sys.exit(1)
+              for i, pos in enumerate(positions):
+                  check_position(pos, i)
+              # schema, if present, should look right (don't hard-require it).
+              schema = d.get("schema")
+              if schema is not None and not str(schema).startswith("valuatio-portfolio"):
+                  print("Unexpected schema:", schema); sys.exit(1)
+              # transactions optional; if present must be a list with ids.
+              txns = d.get("transactions", [])
+              if not isinstance(txns, list):
+                  print("transactions is not a list"); sys.exit(1)
+              for i, t in enumerate(txns[:100]):
+                  if isinstance(t, dict) and "id" not in t:
+                      print(f"transaction {i} missing id"); sys.exit(1)
+              print(f"OK (wrapped) — {len(positions)} positions, "
+                    f"{len(txns)} transactions, cash {d.get('cashPosition', 0)}")
+              sys.exit(0)
+
+          print("portfolio_data.json must be a JSON array or object"); sys.exit(1)
+          PY
