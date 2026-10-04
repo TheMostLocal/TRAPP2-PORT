@@ -31,11 +31,57 @@ import urllib.error
 import urllib.parse
 from datetime import datetime, timezone, timedelta
 
-URL = os.environ.get("SUPABASE_URL", "").rstrip("/")
-KEY = (os.environ.get("SUPABASE_SERVICE_ROLE")
-       or os.environ.get("SUPABASE_SERVICE_KEY")
-       or os.environ.get("SUPABASE_KEY")
-       or os.environ.get("SUPABASE_ANON_KEY") or "")
+# ---- Supabase credentials (same block in every Valuatio sync script) --------
+# Picks whichever configured key is actually a SERVICE key (legacy JWT with
+# role=service_role, or a new sb_secret_ key), so a wrong value in ONE of the
+# two secret names can't silently downgrade writes to anon. Never prints keys.
+import base64 as _sb_b64, json as _sb_json, os as _sb_os, re as _sb_re
+def _sb_claims(k):
+    try:
+        seg = k.split(".")[1]; seg += "=" * (-len(seg) % 4)
+        return _sb_json.loads(_sb_b64.urlsafe_b64decode(seg))
+    except Exception:
+        return {}
+def _sb_kind(k):
+    k = (k or "").strip()
+    if not k: return "missing"
+    if k.startswith("sb_secret_"): return "secret"
+    if k.startswith("sb_publishable_"): return "publishable"
+    if k.count(".") == 2: return _sb_claims(k).get("role") or "jwt(no role)"
+    return "unrecognized"
+def _sb_url():
+    u = (_sb_os.environ.get("SUPABASE_URL") or "").strip().rstrip("/")
+    return _sb_re.sub(r"/rest/v1$", "", u)
+def _sb_pick_key():
+    names = ("SUPABASE_SERVICE_ROLE", "SUPABASE_SERVICE_KEY", "SUPABASE_KEY", "SUPABASE_ANON_KEY")
+    vals = [(n, (_sb_os.environ.get(n) or "").strip()) for n in names]
+    have = [(n, v) for n, v in vals if v]
+    good = [(n, v) for n, v in have if _sb_kind(v) in ("service_role", "secret")]
+    name, key = (good or have or [(None, "")])[0]
+    print("[supabase] " + (", ".join(f"{n}={_sb_kind(v)}" for n, v in have) or "no keys set")
+          + f" -> using {name or 'none'}")
+    if key and _sb_kind(key) not in ("service_role", "secret"):
+        print(f"::warning::{name} is a '{_sb_kind(key)}' key, not service_role/secret - "
+              "service-only tables (ticker_snapshot, regime_timeline, bot_equity) will reject writes")
+    distinct = {v for n, v in have if n in names[:2]}
+    if len(distinct) > 1:
+        print("::warning::SUPABASE_SERVICE_ROLE and SUPABASE_SERVICE_KEY differ - set both to the same service key")
+    ref = _sb_claims(key).get("ref") if key.count(".") == 2 else None
+    m = _sb_re.match(r"https://([a-z0-9]+)\.supabase\.co$", _sb_url())
+    if ref and m and ref != m.group(1):
+        print(f"::error::key belongs to Supabase project '{ref}' but SUPABASE_URL points at '{m.group(1)}' (keys from the other project?)")
+    return key
+def _sb_finite(obj):
+    if isinstance(obj, float):
+        return obj if obj == obj and obj not in (float("inf"), float("-inf")) else None
+    if isinstance(obj, dict):
+        return {k: _sb_finite(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_sb_finite(v) for v in obj]
+    return obj
+# -----------------------------------------------------------------------------
+URL = _sb_url()
+KEY = _sb_pick_key()
 TABLE = "analytics_kv"
 DATA = "data/probability_data.json"
 
@@ -70,7 +116,7 @@ def _req(method, path, body=None, headers=None):
     h = {"apikey": KEY, "Authorization": f"Bearer {KEY}", "Content-Type": "application/json"}
     if headers:
         h.update(headers)
-    data = json.dumps(body).encode() if body is not None else None
+    data = json.dumps(_sb_finite(body), allow_nan=False).encode() if body is not None else None
     req = urllib.request.Request(URL + path, data=data, headers=h, method=method)
     try:
         with urllib.request.urlopen(req, timeout=60) as r:
@@ -87,6 +133,40 @@ def _thesis_ticker(t):
             or raw.get("ticker") or raw.get("primaryTicker"))
 
 
+# ---- Scheduled-run freshness guard -------------------------------------------
+# The app writes Supabase directly whenever you edit, and commits this JSON only
+# when you press "Save to Repo". A PUSH of the file is therefore always a
+# deliberate, current snapshot and is synced. An hourly SCHEDULED run, however,
+# would replay whatever copy sits in the repo - a months-old file would
+# overwrite newer rows and its reconcile step would DELETE rows added since.
+# So scheduled runs only sync a file generated within the last N hours.
+MAX_AGE_H = float(os.environ.get("PORT_SYNC_MAX_AGE_H") or 36)
+
+
+def _stale_for_schedule(d, label):
+    if (os.environ.get("SYNC_TRIGGER") or "").strip() != "schedule":
+        return False
+    ts = d.get("generatedAt") if isinstance(d, dict) else None
+    try:
+        gen = datetime.fromisoformat(str(ts).replace("Z", "+00:00"))
+        if gen.tzinfo is None:
+            gen = gen.replace(tzinfo=timezone.utc)
+        age_h = (datetime.now(timezone.utc) - gen).total_seconds() / 3600
+    except Exception:
+        age_h = None
+    if age_h is not None and age_h <= MAX_AGE_H:
+        return False
+    shown = "unknown age" if age_h is None else f"{age_h:.0f}h old"
+    print(f"::notice::{label}: scheduled sync SKIPPED - repo file is {shown} (generatedAt={ts}). "
+          f"Only fresh files (<= {MAX_AGE_H:.0f}h) or a direct push are synced, so a stale repo copy "
+          "can never overwrite or delete newer rows written by the app.")
+    return True
+# -----------------------------------------------------------------------------
+
+
+FAILED = []
+
+
 def main():
     if not URL or not KEY:
         print("X Missing creds. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE (or SUPABASE_SERVICE_KEY).")
@@ -95,6 +175,8 @@ def main():
         print(f"No {DATA} yet — nothing to sync (the app commits it).")
         return 0
     d = json.loads(open(DATA).read())
+    if _stale_for_schedule(d, "probability"):
+        return 0
 
     if isinstance(d, list):
         theses = d
@@ -128,13 +210,14 @@ def main():
         if st in (200, 201, 204):
             sent += len(chunk)
         else:
-            print(f"  upsert chunk {i} -> HTTP {st}: {body[:240]}")
+            print(f"::error::probability upsert chunk {i} -> HTTP {st}: {body[:240]}")
+            FAILED.append("upsert")
     print(f"  upserted {sent}/{len(rows)}")
 
     # RECONCILE probability:* keys ONLY (never touch macro:*/regime:*). Guarded so
     # an empty file can't wipe theses.
     deleted = 0
-    if keys:
+    if keys and not FAILED:   # never delete after a failed upsert
         st, body = _req("GET", f"/rest/v1/{TABLE}?key=like.probability:*&select=key")
         existing = set()
         if st == 200:
@@ -151,7 +234,11 @@ def main():
             if st in (200, 204):
                 deleted += len(chunk)
             else:
-                print(f"  reconcile delete -> HTTP {st}: {body[:200]}")
+                print(f"::error::probability reconcile delete -> HTTP {st}: {body[:200]}")
+                FAILED.append("delete")
+    if FAILED:
+        print(f"X probability sync: {sent} upserted, {deleted} removed, FAILED: {sorted(set(FAILED))}")
+        return 1
     print(f"OK probability sync complete — {sent} upserted, {deleted} stale row(s) removed")
     return 0
 
