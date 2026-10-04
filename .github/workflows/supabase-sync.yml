@@ -31,6 +31,7 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           SUPABASE_SERVICE_ROLE: ${{ secrets.SUPABASE_SERVICE_ROLE }}
+          SYNC_TRIGGER: ${{ github.event_name }}   # schedule runs skip stale repo files
         run: python3 pipeline/sync_port_to_supabase.py
       - name: Push probability → Supabase
         if: always()          # push theses even if the portfolio step reported issues
@@ -38,4 +39,5 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           SUPABASE_SERVICE_ROLE: ${{ secrets.SUPABASE_SERVICE_ROLE }}
+          SYNC_TRIGGER: ${{ github.event_name }}   # schedule runs skip stale repo files
         run: python3 pipeline/sync_probability_to_supabase.py
