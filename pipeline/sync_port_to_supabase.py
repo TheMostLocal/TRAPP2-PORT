@@ -215,7 +215,48 @@ def _ensure_port_id(rec):
 
 
 # --------------------------------------------------------------- enrichment --
+FX_URL = f"{RAW}/TRAPP2-1/main/data/fx/rates.json"
+
+# Quote-unit currencies: (base currency, factor). Futures on CBOT/ICE soft
+# commodities quote in US CENTS (USX), London stocks in PENCE (GBp/GBX), JSE in
+# ZA cents, TASE in agorot. The app converts all of these (normalizeRowToUSD);
+# the portfolio sync must too, or a corn future marks at $497 instead of $4.97.
+_SUBUNIT = {"USX": ("USD", 0.01), "USD.": ("USD", 0.01), "USd": ("USD", 0.01),
+            "GBp": ("GBP", 0.01), "GBX": ("GBP", 0.01),
+            "ZAc": ("ZAR", 0.01), "ZAC": ("ZAR", 0.01),
+            "ILA": ("ILS", 0.01), "ILa": ("ILS", 0.01)}
+
+
+def _load_fx():
+    """USD-per-unit map from TRAPP2-1/data/fx/rates.json (the file the app uses)."""
+    d = fetch_json(FX_URL)
+    rates = (d.get("rates") if isinstance(d, dict) else {}) or {}
+    out = {"USD": 1.0}
+    for ccy, v in rates.items():
+        up = _num(v.get("usdPer")) if isinstance(v, dict) else None
+        if up and up > 0:
+            out[str(ccy).upper()] = up
+    return out
+
+
+def _to_usd(price, currency, fx):
+    """Local quote -> USD. None when the currency has no loaded rate (the lot then
+    marks at cost and is flagged, rather than being valued in the wrong unit)."""
+    if price is None:
+        return None
+    raw = (currency or "USD").strip()
+    base, factor = _SUBUNIT.get(raw, (raw.upper() or "USD", 1.0))
+    rate = fx.get(base)
+    return None if rate is None else price * factor * rate
+
+
+UNPRICED = {}   # ticker -> local currency it couldn't convert (logged in main)
+
+
 def _load_price_map():
+    """{TICKER: price in USD}. First repo wins, as before; foreign / sub-unit
+    quotes are converted with the same FX file the app uses."""
+    fx = _load_fx()
     px = {}
     for url in MASTER_SOURCES:
         d = fetch_json(url)
@@ -224,9 +265,18 @@ def _load_price_map():
             if not isinstance(r, dict):
                 continue
             tk = (r.get("ticker") or r.get("symbol") or "").upper()
-            p = _num(r.get("price")) or _num(r.get("fmpPrice")) or _num(r.get("close")) or _num(r.get("last"))
-            if tk and p is not None and tk not in px:
-                px[tk] = p
+            if not tk or tk in px:
+                continue
+            p = (_num(r.get("price")) or _num(r.get("fmpPrice")) or _num(r.get("close"))
+                 or _num(r.get("last")) or _num(r.get("closeyest")))   # prior close if no live quote
+            if p is None:
+                continue
+            ccy = r.get("currency") or "USD"
+            usd = _to_usd(p, ccy, fx)
+            if usd is None:
+                UNPRICED[tk] = ccy
+                continue
+            px[tk] = usd
     return px
 
 
@@ -271,7 +321,13 @@ def _enrich(rec, price_map, total_mv):
     role = str(rec.get("position") or "").lower()
     qty, avg = _num(rec.get("qty")), _num(rec.get("costBasis"))
     if role in ACTIVE_ROLES and qty:
-        price = price_map.get(tk) or avg
+        live = price_map.get(tk)
+        price = live if live is not None else avg
+        # Provenance: market (USD-converted) mark, or marked at cost because no
+        # convertible quote exists (no master row / no FX rate for its currency).
+        out["priceSource"] = "market" if live is not None else "cost"
+        if live is not None:
+            out["markPriceUsd"] = round(live, 6)
         if price is not None:
             direction = -1.0 if role in SHORT_ROLES else 1.0
             mv = abs(qty * price)
@@ -371,6 +427,9 @@ def main():
 
     records = build_records(d)
     price_map = _load_price_map()
+    if UNPRICED:
+        print(f"  {len(UNPRICED)} ticker(s) skipped - no FX rate for their currency: "
+              + ", ".join(f"{t}({c})" for t, c in sorted(UNPRICED.items())[:12]))
     print(f"Portfolio -> Supabase ({URL}) · {len(records)} record(s), {len(price_map)} prices")
 
     # total active market value (for weight_pct).
