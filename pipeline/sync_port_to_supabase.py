@@ -251,6 +251,7 @@ def _to_usd(price, currency, fx):
 
 
 UNPRICED = {}   # ticker -> local currency it couldn't convert (logged in main)
+PRICE_META = {}  # ticker -> {"localPrice", "localCurrency", "fxRate"} for non-USD quotes
 
 
 def _load_price_map():
@@ -277,6 +278,8 @@ def _load_price_map():
                 UNPRICED[tk] = ccy
                 continue
             px[tk] = usd
+            if (ccy or "USD") != "USD":
+                PRICE_META[tk] = {"localPrice": p, "localCurrency": ccy, "fxRate": usd / p if p else None}
     return px
 
 
@@ -326,8 +329,17 @@ def _enrich(rec, price_map, total_mv):
         # Provenance: market (USD-converted) mark, or marked at cost because no
         # convertible quote exists (no master row / no FX rate for its currency).
         out["priceSource"] = "market" if live is not None else "cost"
+        out["priceCurrency"] = "USD"
         if live is not None:
             out["markPriceUsd"] = round(live, 6)
+            meta = PRICE_META.get(tk)
+            if meta:   # same provenance fields the app writes (z81)
+                out["localCurrency"] = meta["localCurrency"]
+                out["localPrice"] = round(meta["localPrice"], 6)
+                if meta.get("fxRate"):
+                    out["fxRate"] = float(f"{meta['fxRate']:.8g}")
+        elif tk in UNPRICED:
+            out["priceNote"] = f"no FX rate for {UNPRICED[tk]}"
         if price is not None:
             direction = -1.0 if role in SHORT_ROLES else 1.0
             mv = abs(qty * price)
